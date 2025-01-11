@@ -1,71 +1,155 @@
+import json
 import numpy as np
+import matplotlib.pyplot as plt
+
+vector = np.ndarray
 
 class NeuralNetwork:
-    def __init__(self, input_size: int, hidden_size: int, output_size: int, learning_rate: float = 0.5) -> None:
-        # neural network attributes
+    def __init__(self, input_size: int, hidden_size: int, output_size: int, eta: float=0.01): 
+        # neural network architecture
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
-        self.learning_rate = learning_rate
+        self.eta = eta
+        
+        # initialize neurons
+        self.input_neurons = np.zeros((1, self.input_size))
+        self.hidden_neurons = np.zeros((1, self.hidden_size))
+        self.output_neurons = np.zeros((1, self.output_size))
 
-        # neurons attributes
-        self.input_neurons = np.zeros(self.input_size + 1)
-        self.hidden_neurons = np.zeros(self.hidden_size + 1)
-        self.output_neurons = np.zeros(output_size)
+        # weights for input -> hidden and for hidden -> output
+        self.IH_weights = np.random.uniform(-1, 1, (self.input_size, self.hidden_size))
+        self.HO_weights = np.random.uniform(-1, 1, (self.hidden_size, self.output_size))
+        
+        # bias for hidden and output layer
+        self.HL_bias = np.zeros((1, self.hidden_size))
+        self.OL_bias = np.zeros((1, self.output_size))
+    
 
-        # random-generated weights for input-hidden layer and for hidden-output layer
-        self.IH_weights = np.random.uniform(-1, 1, (hidden_size, input_size))
-        self.HO_weights = np.random.uniform(-1, 1,(output_size, hidden_size))
-
-        # random-generated biases for input-hidden layer and for hidden-output layer
-        self.HL_bias = np.random.uniform(-1, 1, (hidden_size, 1))
-        self.OL_bias = np.random.uniform(-1, 1, (output_size, 1))
-
-        # velocity terms for momentum
-        self.IH_velocity = np.zeros_like(self.IH_weights)
-        self.HO_velocity = np.zeros_like(self.HO_weights)
-
-
-    def sigmoid(self, x:np.ndarray) -> np.ndarray:
+    def sigmoid(self, x):
         return 1 / (1 + np.exp(-x))
     
 
-    def softmax(self, x: np.ndarray) -> np.ndarray:
-        return np.exp(x) / np.sum(np.exp(x))
+    def sigmoid_derivative(self, x):
+        s = self.sigmoid(x)
+        return s * (1 - s)
 
 
-    def feed_forward(self, inputs:np.ndarray) -> np.ndarray:
-        # input layer
-        self.input_neurons[:self.input_size] = inputs
-        self.input_neurons[-1] = -1
+    def feedforward(self, X: vector) -> vector:
+        # Forward pass: input -> hidden
+        self.input_neurons = X
+        self.hidden_input = np.dot(self.input_neurons, self.IH_weights) + self.HL_bias
+        self.hidden_neurons = self.sigmoid(self.hidden_input)
 
-        # weighted sum (w and input neurons)
-        hidden_input = np.dot(self.IH_weights, self.input_neurons)
-        self.hidden_neurons[:-1] = self.sigmoid(hidden_input + self.HL_bias)
-        self.hidden_neurons[-1] = -1
+        # Forward pass: hidden -> output
+        self.output_input = np.dot(self.hidden_neurons, self.HO_weights) + self.OL_bias
+        self.output_neurons = self.sigmoid(self.output_input)
 
-        # weighted sum (w and hidden neurons)
-        self.output_input = np.dot(self.HO_weights, self.hidden_neurons)
-        self.output_neurons = self.softmax(self.output_input)
+        return self.output_neurons
 
 
-    def back_propagate(self, inputs: np.ndarray, targets: np.ndarray) -> None:
-        # Calcolo errore e aggiornamento per il livello di output
-        for o in range(self.output_size):
-            delta_output = (self.output_neurons[o] - targets[o]) * self.output_neurons[o] * (1 - self.output_neurons[o])
-            for h in range(self.hidden_size + 1):  # Include bias
-                self.HO_velocity[o][h] = self.momentum * self.HO_velocity[o][h] - self.learning_rate * delta_output * self.hidden_neurons[h]
-                self.HO_weights[o][h] += self.HO_velocity[o][h]
+    def backpropagation(self, X: vector, y: vector) -> None:
+        # Compute error at output layer
+        output_error = self.output_neurons - y
+        output_delta = output_error * self.sigmoid_derivative(self.output_input)
 
-        # Calcolo errore per il livello nascosto
-        hidden_errors = np.zeros(self.hidden_size)
-        for h in range(self.hidden_size):
-            hidden_errors[h] = sum(
-                self.HO_weights[o][h] * (self.output_neurons[o] - targets[o]) for o in range(self.output_size)
-            ) * self.hidden_neurons[h] * (1 - self.hidden_neurons[h])
+        # Compute error at hidden layer
+        hidden_error = np.dot(output_delta, self.HO_weights.T)
+        hidden_delta = hidden_error * self.sigmoid_derivative(self.hidden_input)
 
-        # Aggiornamento dei pesi tra input e livello nascosto
-        for h in range(self.hidden_size):
-            for i in range(self.input_size + 1):  # Include bias
-                self.IH_velocity[h][i] = self.momentum * self.IH_velocity[h][i] - self.learning_rate * hidden_errors[h] * self.input_neurons[i]
-                self.IH_weights[h][i] += self.IH_velocity[h][i]
+        # Update weights and biases
+        self.HO_weights -= self.eta * np.dot(self.hidden_neurons.T, output_delta)
+        self.OL_bias -= self.eta * np.sum(output_delta)
+        self.IH_weights -= self.eta * np.dot(X.T, hidden_delta)
+        self.HL_bias -= self.eta * np.sum(hidden_delta)
+
+
+    def get_loss(self, y_true: vector, y_pred: vector) -> float:
+        return np.mean((y_true - y_pred) ** 2)
+
+
+    def train(self, X: vector, y: vector, epochs: int, debug: bool=False) -> None:
+        loss = np.zeros(epochs)
+
+        for i in range(epochs):
+            self.feedforward(X)
+            self.backpropagation(X, y)
+            
+            loss[i] = self.get_loss(y, self.output_neurons)
+            
+        if debug:
+            for i in range(epochs):
+                print(f"Epoch {i+1}/{epochs}, Loss: {loss[i]:.2f}")
+
+            plt.figure(figsize=(8, 5))
+            epochs = np.arange(len(loss))
+
+            plt.plot(epochs, loss, label='Loss', marker='o', markersize=4)
+            plt.title('Loss in function of epochs')
+            plt.xlabel('Epochs')
+            plt.ylabel('Loss')
+            plt.grid(True)
+            plt.legend()
+            plt.show()
+
+
+    def test(self, X: vector, y: vector, debug: bool=False) -> float:
+        predictions = self.feedforward(X)
+        
+        # get the index of the highest probability for each row
+        predicted_classes = np.argmax(predictions, axis=1)
+        actual_classes = np.argmax(y, axis=1)
+
+        # get the number of correct predictions and calculate the accuracy
+        correct_predictions = np.sum(predicted_classes == actual_classes)
+        accuracy = (correct_predictions / y.shape[0]) * 100
+
+        if debug:
+            species = ["Iris-setosa", "Iris-versicolor", "Iris-virginica"]
+            
+            # print the predictions and the actual classes for each row
+            for i, prediction in enumerate(predictions):
+                percentage = (np.max(prediction) * 100).round(2)
+                predicted = species[predicted_classes[i]]
+                actual = species[actual_classes[i]]
+                print(f"{percentage}% that it is {predicted}. Actual: {actual}. Result: {predicted == actual}")
+            
+            print(f"Test Accuracy: {accuracy:.2f}%")
+
+        return accuracy
+    
+
+    def export_model(self, file_path: str) -> None:
+        model_data = {
+            "input_size": self.input_size,
+            "hidden_size": self.hidden_size,
+            "output_size": self.output_size,
+            "eta": self.eta,
+            "IH_weights": self.IH_weights.tolist(),
+            "HO_weights": self.HO_weights.tolist(),
+            "HL_bias": self.HL_bias.tolist(),
+            "OL_bias": self.OL_bias.tolist()
+        }
+        
+        with open(file_path, 'w') as file:
+            json.dump(model_data, file, indent=4)
+        print(f"Model exported to {file_path}")
+
+    
+    def import_model(self, file_path: str) -> None:
+        with open(file_path, 'r') as file:
+            model_data = json.load(file)
+
+        # Aggiorna i parametri della rete neurale
+        self.input_size = model_data["input_size"]
+        self.hidden_size = model_data["hidden_size"]
+        self.output_size = model_data["output_size"]
+        self.eta = model_data["eta"]
+
+        # Aggiorna i pesi e i bias
+        self.IH_weights = np.array(model_data["IH_weights"])
+        self.HO_weights = np.array(model_data["HO_weights"])
+        self.HL_bias = np.array(model_data["HL_bias"])
+        self.OL_bias = np.array(model_data["OL_bias"])
+
+        print(f"Model imported from {file_path}")
