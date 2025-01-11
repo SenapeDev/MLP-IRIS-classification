@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 vector = np.ndarray
 
 class NeuralNetwork:
-    def __init__(self, input_size: int, hidden_size: int, output_size: int, eta: float=0.01): 
+    def __init__(self, input_size: int, hidden_size: int, output_size: int, eta: float=.01, momentum: float=.9): 
         # neural network architecture
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.eta = eta
+        self.momentum = momentum
         
         # initialize neurons
         self.input_neurons = np.zeros((1, self.input_size))
@@ -25,6 +26,12 @@ class NeuralNetwork:
         self.HL_bias = np.zeros((1, self.hidden_size))
         self.OL_bias = np.zeros((1, self.output_size))
     
+        # velocity terms for momentum
+        self.IH_velocity = np.zeros_like(self.IH_weights)
+        self.HO_velocity = np.zeros_like(self.HO_weights)
+        self.HL_velocity = np.zeros_like(self.HL_bias)
+        self.OL_velocity = np.zeros_like(self.OL_bias)
+
 
     def sigmoid(self, x):
         return 1 / (1 + np.exp(-x))
@@ -57,11 +64,18 @@ class NeuralNetwork:
         hidden_error = np.dot(output_delta, self.HO_weights.T)
         hidden_delta = hidden_error * self.sigmoid_derivative(self.hidden_input)
 
-        # Update weights and biases
-        self.HO_weights -= self.eta * np.dot(self.hidden_neurons.T, output_delta)
-        self.OL_bias -= self.eta * np.sum(output_delta)
-        self.IH_weights -= self.eta * np.dot(X.T, hidden_delta)
-        self.HL_bias -= self.eta * np.sum(hidden_delta)
+        self.HO_velocity = self.momentum * self.HO_velocity - self.eta * np.dot(self.hidden_neurons.T, output_delta)
+        self.HO_weights += self.HO_velocity
+
+        self.OL_velocity = self.momentum * self.OL_velocity - self.eta * np.sum(output_delta, axis=0, keepdims=True)
+        self.OL_bias += self.OL_velocity
+
+        self.IH_velocity = self.momentum * self.IH_velocity - self.eta * np.dot(X.T, hidden_delta)
+        self.IH_weights += self.IH_velocity
+
+        self.HL_velocity = self.momentum * self.HL_velocity - self.eta * np.sum(hidden_delta, axis=0, keepdims=True)
+        self.HL_bias += self.HL_velocity
+
 
 
     def get_loss(self, y_true: vector, y_pred: vector) -> float:
@@ -125,17 +139,21 @@ class NeuralNetwork:
             "hidden_size": self.hidden_size,
             "output_size": self.output_size,
             "eta": self.eta,
+            "momentum": self.momentum,
             "IH_weights": self.IH_weights.tolist(),
             "HO_weights": self.HO_weights.tolist(),
             "HL_bias": self.HL_bias.tolist(),
-            "OL_bias": self.OL_bias.tolist()
+            "OL_bias": self.OL_bias.tolist(),
+            "IH_velocity": self.IH_velocity.tolist(),
+            "HO_velocity": self.HO_velocity.tolist(),
+            "HL_velocity": self.HL_velocity.tolist(),
+            "OL_velocity": self.OL_velocity.tolist()
         }
         
         with open(file_path, 'w') as file:
             json.dump(model_data, file, indent=4)
         print(f"Model exported to {file_path}")
 
-    
     def import_model(self, file_path: str) -> None:
         with open(file_path, 'r') as file:
             model_data = json.load(file)
@@ -145,11 +163,16 @@ class NeuralNetwork:
         self.hidden_size = model_data["hidden_size"]
         self.output_size = model_data["output_size"]
         self.eta = model_data["eta"]
+        self.momentum = model_data["momentum"]
 
-        # Aggiorna i pesi e i bias
+        # Aggiorna i pesi, bias e velocità
         self.IH_weights = np.array(model_data["IH_weights"])
         self.HO_weights = np.array(model_data["HO_weights"])
         self.HL_bias = np.array(model_data["HL_bias"])
         self.OL_bias = np.array(model_data["OL_bias"])
+        self.IH_velocity = np.array(model_data["IH_velocity"])
+        self.HO_velocity = np.array(model_data["HO_velocity"])
+        self.HL_velocity = np.array(model_data["HL_velocity"])
+        self.OL_velocity = np.array(model_data["OL_velocity"])
 
         print(f"Model imported from {file_path}")
