@@ -69,17 +69,3 @@ class NeuralNetwork:
             for i in range(self.input_size + 1):  # Include bias
                 self.IH_velocity[h][i] = self.momentum * self.IH_velocity[h][i] - self.learning_rate * hidden_errors[h] * self.input_neurons[i]
                 self.IH_weights[h][i] += self.IH_velocity[h][i]
-
-
-    def train(self, X: np.ndarray, y: np.ndarray, epochs: int, decay: float = 0.01) -> None:
-        for epoch in range(epochs):
-            total_loss = 0
-            for inputs, targets in zip(X, y):
-                self.feed_forward(inputs)
-                total_loss += -np.sum(targets * np.log(self.output_neurons + 1e-9))  # Cross-entropy loss
-                self.back_propagate(inputs, targets)
-
-            # Update learning rate (decay)
-            self.learning_rate = self.learning_rate / (1 + decay * epoch)
-
-            print(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss:.4f}, Learning Rate: {self.learning_rate:.6f}")
