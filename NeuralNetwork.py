@@ -154,6 +154,7 @@ class NeuralNetwork:
             json.dump(model_data, file, indent=4)
         print(f"Model exported to {file_path}")
 
+
     def import_model(self, file_path: str) -> None:
         with open(file_path, 'r') as file:
             model_data = json.load(file)
