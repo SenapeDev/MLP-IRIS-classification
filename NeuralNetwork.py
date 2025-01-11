@@ -43,12 +43,12 @@ class NeuralNetwork:
 
 
     def feedforward(self, X: vector) -> vector:
-        # Forward pass: input -> hidden
+        # input -> hidden
         self.input_neurons = X
         self.hidden_input = np.dot(self.input_neurons, self.IH_weights) + self.HL_bias
         self.hidden_neurons = self.sigmoid(self.hidden_input)
 
-        # Forward pass: hidden -> output
+        # hidden -> output
         self.output_input = np.dot(self.hidden_neurons, self.HO_weights) + self.OL_bias
         self.output_neurons = self.sigmoid(self.output_input)
 
@@ -56,14 +56,15 @@ class NeuralNetwork:
 
 
     def backpropagation(self, X: vector, y: vector) -> None:
-        # Compute error at output layer
+        # get error at output layer
         output_error = self.output_neurons - y
         output_delta = output_error * self.sigmoid_derivative(self.output_input)
 
-        # Compute error at hidden layer
+        # get error at hidden layer
         hidden_error = np.dot(output_delta, self.HO_weights.T)
         hidden_delta = hidden_error * self.sigmoid_derivative(self.hidden_input)
 
+        # update weights and biases with momentum
         self.HO_velocity = self.momentum * self.HO_velocity - self.eta * np.dot(self.hidden_neurons.T, output_delta)
         self.HO_weights += self.HO_velocity
 
@@ -159,14 +160,12 @@ class NeuralNetwork:
         with open(file_path, 'r') as file:
             model_data = json.load(file)
 
-        # Aggiorna i parametri della rete neurale
         self.input_size = model_data["input_size"]
         self.hidden_size = model_data["hidden_size"]
         self.output_size = model_data["output_size"]
         self.eta = model_data["eta"]
         self.momentum = model_data["momentum"]
 
-        # Aggiorna i pesi, bias e velocità
         self.IH_weights = np.array(model_data["IH_weights"])
         self.HO_weights = np.array(model_data["HO_weights"])
         self.HL_bias = np.array(model_data["HL_bias"])
