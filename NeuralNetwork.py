@@ -134,6 +134,37 @@ class NeuralNetwork:
         return accuracy
     
 
+    def train_and_test(self, X_train: vector, y_train: vector, X_test: vector, y_test: vector, epochs: int, debug: bool=False) -> None:
+        train_loss = np.zeros(epochs)
+        test_loss = np.zeros(epochs)
+
+        for i in range(epochs):
+            # Training step
+            self.feedforward(X_train)
+            self.backpropagation(X_train, y_train)
+            train_loss[i] = self.get_loss(y_train, self.output_neurons)
+
+            # Test step
+            test_predictions = self.feedforward(X_test)
+            test_loss[i] = self.get_loss(y_test, test_predictions)
+            
+        if debug:
+            for i in range(epochs):
+                print(f"Epoch {i+1}/{epochs}, Training Loss: {train_loss[i]:.4f}, Test Loss: {test_loss[i]:.4f}")
+
+            plt.figure(figsize=(10, 6))
+            epochs_range = np.arange(epochs)
+
+            plt.plot(epochs_range, train_loss, label='Training loss', marker='o', markersize=4)
+            plt.plot(epochs_range, test_loss, label='Test loss', marker='x', markersize=4)
+            plt.title('Training and test Loss over Epochs')
+            plt.xlabel('Epochs')
+            plt.ylabel('Loss')
+            plt.grid(True)
+            plt.legend()
+            plt.show()
+
+
     def export_model(self, file_path: str) -> None:
         model_data = {
             "input_size": self.input_size,
