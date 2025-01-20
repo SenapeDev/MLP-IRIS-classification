@@ -331,7 +331,9 @@ Epoch 99/100, Loss: 0.02
 Epoch 100/100, Loss: 0.02
 ```
 
-![png](Figure_1.png)
+<div align="center">
+	<img src="screenshot/Figure_1.png" alt="Figure_1" width="70%">
+</div>
 
 
 ```python
