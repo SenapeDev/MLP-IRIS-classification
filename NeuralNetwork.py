@@ -129,7 +129,7 @@ class NeuralNetwork:
                 actual = species[actual_classes[i]]
                 print(f"{percentage}% that it is {predicted}. Actual: {actual}. Result: {predicted == actual}")
             
-            print(f"Test Accuracy: {accuracy:.2f}%")
+            print(f"Test accuracy: {accuracy:.2f}%")
 
         return accuracy
     
@@ -150,14 +150,14 @@ class NeuralNetwork:
             
         if debug:
             for i in range(epochs):
-                print(f"Epoch {i+1}/{epochs}, Training Loss: {train_loss[i]:.4f}, Test Loss: {test_loss[i]:.4f}")
+                print(f"Epoch {i+1}/{epochs}, Training loss: {train_loss[i]:.4f}, Test loss: {test_loss[i]:.4f}")
 
             plt.figure(figsize=(10, 6))
             epochs_range = np.arange(epochs)
 
             plt.plot(epochs_range, train_loss, label='Training loss', marker='o', markersize=4)
             plt.plot(epochs_range, test_loss, label='Test loss', marker='x', markersize=4)
-            plt.title('Training and test Loss over Epochs')
+            plt.title('Training and test loss over epochs')
             plt.xlabel('Epochs')
             plt.ylabel('Loss')
             plt.grid(True)
